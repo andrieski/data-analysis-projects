@@ -1,0 +1,398 @@
+---
+output: html_document
+---
+
+## Report 4: Final Poster and Code
+## May 15, 2015
+## T.A.Z.: Temi Lal, Andrey Mironyuk, Zubairali Marediya
+
+
+***
+
+### Abstract:
+
+        The purpose of this study is to examine how expenditures made per household are related to the highest level of education obtained by the people living there. One might expect those with a higher education level to earn more money and thus spend more in general. The research question at hand, however, is also concerned with exploring how households with varying levels of education might be different in how they distribute their spending into categories like food and apparel. Every quarter, the Bureau of Labor Statistics (BLS) uses a multi-stage, rotating panel design survey to collect data on consumer expenditures. 
+
+        The data shows, as expected, a substantial difference in the amount of money spent on food, housing, apparel, and in total per quarter among households with different highest levels of education. Households where at least one person has obtained a professional or doctorate degree spend around five times on average more per quarter than those in which no one has attended school. This gap is larger for goods like clothing and smaller for necessities like food. In general, there is a steady increase in spending in all categories as highest education level increases.
+
+***
+
+### Description of the Question:
+
+Does a higher education have an impact on lifestyle?
+
+Does education level impact specific expenditures such as food, housing, and apparel?
+
+How does education level impact total expenditures?
+
+***
+
+### Description of the Survey:
+
+Samples are representative of the total US civilian population (non institutional).
+
+First step: The selection of 91 areas (PSU's), each of which are composed of counties or groups of counties.
+
+Each PSU is one of 4 types:
+(1) Metropolitan Statistical Areas (MSA's) with a population greater than 1.5 million, 
+(2) Medium-sized MSA's, 
+(3) Nonmetropolitan areas, 
+(4) Nonmetropolitan areas where only the urban population data will be included.
+
+An unclustered sample of Consumer Units (CUs) is chosen within each of the 91 PSU's.
+
+This list of houses (sampling frame) from which the CUs were picked came from the 2000 Census of Population 100 -percent-detail file.
+
+This survey uses 3 rotating panels. This diagram depicts when panel A's CU's get the questionnaire. The CU then reports expenditures for the last 3 months. After 5  quarters, the CU is replaced. 
+
+For panel B, the CU's receive questionnaire's on Feb, May, Aug, and so on.
+
+***
+
+### Analysis of the Data:
+
+```{r}
+### STEP 1 ###
+
+# First we loaded the necessary libraries and imported our data for each quarter. 
+
+library(survey)
+library(plyr)
+library(ggplot2)
+
+f1 = read.csv("fmli131x.csv")
+f2 = read.csv("fmli132.csv")
+f3 = read.csv("fmli133.csv")
+f4 = read.csv("fmli134.csv")
+f5 = read.csv("fmli141.csv")
+
+# Now we will combine these five data frames into one ordered one.
+
+f_list = list(f1, f2, f3, f4, f5)
+f = rbind.fill(f_list)
+
+# We noticed that many values in the replicated weights columns were ".". The values in these columns were also factor variables. Here we changed the periods to zeros and converted the columns to a numeric form.
+
+for (i in 217:260 ) {
+  temp = as.character(f[ , i])
+  temp[which(temp == ".")] = "0"
+  temp = as.numeric(temp)
+  f[, i] = temp
+}
+```
+
+```{r}
+### STEP 2 ###
+
+# Next, we extract only our variables of interest:
+
+f=f[, c("NEWID", "FOODPQ", "ALCBEVPQ", "HOUSPQ", "APPARPQ", "TRANSPQ", "HEALTHPQ", "ENTERTPQ", "PERSCAPQ",
+      "READPQ", "EDUCAPQ", "TOBACCPQ", "MISCPQ", "CASHCOPQ", "PERINSPQ", "TOTEXPPQ",
+      "ERANKH", "ERANKHM", "HIGH_EDU", "BATHRMQ", "PUBTRAPQ", "WTREP01", "WTREP02", "WTREP03",
+      "WTREP04", "WTREP05", "WTREP06", "WTREP07", "WTREP08", "WTREP09", "WTREP10", "WTREP11", "WTREP12",
+      "WTREP13", "WTREP14", "WTREP15", "WTREP16", "WTREP17", "WTREP18", "WTREP19", "WTREP20", "WTREP21",
+      "WTREP22", "WTREP23", "WTREP24", "WTREP25", "WTREP26", "WTREP27", "WTREP28", "WTREP29", "WTREP30",
+      "WTREP31", "WTREP32", "WTREP33", "WTREP34", "WTREP35", "WTREP36", "WTREP37", "WTREP38", "WTREP39",
+      "WTREP40", "WTREP41", "WTREP42", "WTREP43", "WTREP44", "FINLWT21")]
+```
+
+```{r}
+### STEP 3 ###
+
+# Here, we will create a survey object. Our object will make use of our replicated weights.
+  
+f.design = svrepdesign(type = "BRR", repweights = f[,22:66], weights = ~FINLWT21, data = f, combined.weights = T , na.rm = F)
+
+f.design
+```
+
+Next, we made graphs of all the variables we thought were interesting and compared them by Highest Education Level (HIGH_EDU). From these, we selected the four that seemed most interesting.
+
+**Here is the key to the legend for Highest Education Level:**
+
+*00: Never Attended*
+
+*10: 1st-8th Grade*
+
+*11: 9th-12th Grade (no high school diploma)*
+
+*12: HS Graduate*
+
+*13: Some college, no degree*
+
+*14: AA degree*
+
+*15: Bachelors degree*
+
+*16: Masters degree*
+
+*17: Professional doctorate degree*
+
+We first started by plotting weighted boxplots with no adjustments made to the x-axis and y-axis limits. 
+
+#### Process of making unzoomed weighted boxplots.
+
+First let's make a weighted boxplot for Food Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), FOODPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Food Expenditures") + 
+  ggtitle("Weighted Boxplots of Food Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for Alcohol Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), ALCBEVPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Alcohol Expenditures") + 
+  ggtitle("Weighted Boxplots of Alcohol Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for House Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), HOUSPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("House Expenditures") + 
+  ggtitle("Weighted Boxplots of House Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for Apparel Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), APPARPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Apparel Expenditures") + 
+  ggtitle("Weighted Boxplots of Apparel Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for Transportation Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), TRANSPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Transportation Expenditures") + 
+  ggtitle("Weighted Boxplots of Transportation Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for Health Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), HEALTHPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Health Expenditures") + 
+  ggtitle("Weighted Boxplots of Health Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for Entertainment Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), ENTERTPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Entertainment Costs") + 
+  ggtitle("Weighted Boxplots of Entertainment Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for Education Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), EDUCAPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Education Expenditures") + 
+  ggtitle("Weighted Boxplots of Education Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for Tobacco Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), TOBACCPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Tobacco Expenditures") + 
+  ggtitle("Weighted Boxplots of Tobacco Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot for Total Expenditures by Highest Education level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), TOTEXPPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Total Expenditures") + 
+  ggtitle("Weighted Boxplots of Total Expenditures\nby Highest Education Level")
+```
+
+Now let's make a weighted boxplot of Public Transporation Costs by Highest Education Level.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), PUBTRAPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip() + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Public Transportation Costs") + 
+  ggtitle("Weighted Boxplots of Public Transportation Expenditures\nby Highest Education Level")
+```
+
+We analyzed all the plots above and found the following four variables most interesting: Food (FOODPQ), House (HOUSPQ), Apparel (APPARPQ), and Total (TOTEXPPQ).
+
+With such few, yet very distant outliers in our selected plots, it became hard to get a closer look of what was actually happening where most of the data occurred. Thus, we "zoomed" in on these plots and only cut off a few outliers. However, we did not cut enough a significant amount of outliers to make the picture "lie" to the viewer. This is further discussed in our Caveats section. 
+
+#### Process of making zoomed weighted boxplots.
+
+*NOTE: The following plots were actually used on the poster and thus needed a larger text size for the labels, titles, etc. However, to make the Rmd and knitted HTML files look clean, the text size has been reduced to 10. The text size was set to 40 when the images were produced for the poster. The panel background and other legend properties were also adjusted for the poster.* 
+
+Now let's make a zoomed weighted boxplot for Food Expenditures by Highest Education Level. 2 outliers were excluded.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), FOODPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip(ylim = c(0, 20000)) + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Food Expenditures") + 
+  ggtitle("Weighted Boxplots of Food Expenditures\nby Highest Education Level") +
+  theme(plot.background = element_rect(fill = "#D7D7D7"),
+        panel.background = element_rect(fill = "#D7D7D7"),
+        panel.border = element_blank(),
+        legend.background = element_rect(fill = "#D7D7D7"),
+        legend.key = element_blank(),
+        text = element_text(size = 10)) + 
+        scale_fill_discrete(name = "Highest\nEducation")
+```
+
+Now let's make a zoomed weighted boxplot for House Expenditures by Highest Education Level. 2 outliers were excluded.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), HOUSPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip(ylim = c(0, 50000)) + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("House Expenditures") + 
+  ggtitle("Weighted Boxplots of House Expenditures\nby Highest Education Level") +
+  theme(plot.background = element_rect(fill = "#D7D7D7"),
+        panel.background = element_rect(fill = "#D7D7D7"),
+        panel.border = element_blank(),
+        legend.background = element_rect(fill = "#D7D7D7"),
+        legend.key = element_blank(),
+        text = element_text(size = 10)) + 
+        scale_fill_discrete(name = "Highest\nEducation")
+```
+
+Now let's make a zoomed weighted boxplot for Apparel Expenditures by Highest Education Level. 5 outliers were excluded.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), APPARPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip(ylim = c(0, 10000)) + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Apparel Expenditures") + 
+  ggtitle("Weighted Boxplots of Apparel Expenditures\nby Highest Education Level") +
+  theme(plot.background = element_rect(fill = "#D7D7D7"),
+        panel.background = element_rect(fill = "#D7D7D7"),
+        panel.border = element_blank(),
+        legend.background = element_rect(fill = "#D7D7D7"),
+        legend.key = element_blank(),
+        text = element_text(size = 10)) + 
+        scale_fill_discrete(name = "Highest\nEducation")
+```
+
+Now let's make a zoomed weighted boxplot for Total Expenditures by Highest Education Level. 14 outliers were excluded.
+
+```{r}
+ggplot(f, aes(factor(HIGH_EDU), TOTEXPPQ)) + 
+  geom_boxplot(aes(fill = factor(HIGH_EDU), weight = FINLWT21)) +
+  coord_flip(ylim = c(0, 100000)) + 
+  xlab("Highest Education Level in the Household") + 
+  ylab("Total Expenditures") + 
+  ggtitle("Weighted Boxplots of Total Expenditures\nby Highest Education Level") +
+  theme(plot.background = element_rect(fill = "#D7D7D7"),
+        panel.background = element_rect(fill = "#D7D7D7"),
+        panel.border = element_blank(),
+        legend.background = element_rect(fill = "#D7D7D7"),
+        legend.key = element_blank(),
+        text = element_text(size = 10)) + 
+        scale_fill_discrete(name = "Highest\nEducation")
+```
+
+Lastly, we used the Survey package to find estimated Means and SE's for each variable by Highest Education Level. 
+
+```{r}
+svyby(~FOODPQ, ~HIGH_EDU, f.design, svymean)
+
+svyby(~HOUSPQ, ~HIGH_EDU, f.design, svymean)
+
+svyby(~APPARPQ, ~HIGH_EDU, f.design, svymean)
+
+svyby(~TOTEXPPQ, ~HIGH_EDU, f.design, svymean)
+```
+
+#### After analyzing the boxplots and tables above, here are our main takeaways:
+
+**Food:**
+
+Median expenditures increase fairly linearly with education.
+
+The maximum spent by households in which no one has attended school is about equal to the seventy-fifth percentile of CU's in which someone has a doctorate degree.
+
+**House:**
+
+The four lowest levels have about the same median housing expenditures.
+
+Expenditures increases non-linearly after 13 (some college).
+
+**Apparel:**
+
+Largest percent increase between highest and lowest levels.
+
+PhD level households spend 5 times more than those with no education.
+
+**Total:**
+
+Largest jump occurs from 15 (Bachelor's) to 16 (Master's).
+
+Combining expenses widens the expenditure gap by education.
+
+Nonlinear increase in expenditures after 13 (some college).
+
+***
+
+### Conclusion:
+
+Higher education is associated with higher education expenditures.
+
+These households also vary more in terms of how much they spend in total and in every category separately.
+     
+#### Caveats:
+
+A few data points had to be excluded from the boxplots, but were included in the numerical estimations.
+
+Respondents may not be able to accurately recall all expenditures.
+
+***
+
+### References:
+
+Consumer Expenditure Survey (CE) Public Use Microdata 2013 Interview dataset. Public-Use Microdata. Bureau of Labor Statistics. Web. <http://www.bls.gov/cex/pumd/data/comma/intrvw13.zip>.
+
+Consumer Expenditure Interview Survey. 2013 Users' Documentation. Bureau of Labor Statistics. Web. <http://www.bls.gov/cex/2013/csxintvw.pdf>.
+
+Interview Data Dictionary. Public Use Microdata Documentation and Errata. Bureau of Labor Statistics. Web. <http://www.bls.gov/cex/2013/csxintvwdata.pdf>.
